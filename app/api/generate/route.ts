@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import Groq from "groq-sdk";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new Anthropic();
+
 
 const HELL_GRIND_FOUNDATION = `Style: 8K IMAX. Photorealistic — no 3D render, no game engine, no game-cutscene aesthetic.
 Cinematography: Emmanuel Lubezki × Roger Deakins.
@@ -17,9 +17,10 @@ Technical: 24fps smooth motion. 8K detail. No jitter.
 Audio: Environmental SFX only. No music. No subtitles.`;
 
 export async function POST(req: NextRequest) {
+  const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
   const { characters, scene, mood, shotType } = await req.json();
 
-  const systemPrompt = `You are a cinematic AI prompt engineer. You reverse-engineered the full production playbook from Higgsfield's $500k AI feature film "Hell Grind" — screened at Cannes, covered by WSJ and BBC. 
+  const systemPrompt = `You are a cinematic AI prompt engineer. You reverse-engineered the full production playbook from Higgsfield's $500k AI feature film "Hell Grind" — screened at Cannes, covered by WSJ and BBC.
 
 You generate prompts using their exact 7-section shot structure, followed by their 12-line technical foundation. Every output should feel like a $500k film shot, not a YouTube tutorial.
 
@@ -46,23 +47,22 @@ Use the full 7-section Hell Grind structure. End with this exact technical found
 
 ${HELL_GRIND_FOUNDATION}`;
 
-  const stream = await client.messages.stream({
-    model: "claude-sonnet-4-6",
+  const stream = await client.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
     max_tokens: 1000,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
+    stream: true,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
   });
 
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
     async start(controller) {
       for await (const chunk of stream) {
-        if (
-          chunk.type === "content_block_delta" &&
-          chunk.delta.type === "text_delta"
-        ) {
-          controller.enqueue(encoder.encode(chunk.delta.text));
-        }
+        const text = chunk.choices[0]?.delta?.content || "";
+        if (text) controller.enqueue(encoder.encode(text));
       }
       controller.close();
     },

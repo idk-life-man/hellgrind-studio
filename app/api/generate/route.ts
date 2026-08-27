@@ -48,7 +48,7 @@ Use the full 7-section Hell Grind structure. End with this exact technical found
 ${HELL_GRIND_FOUNDATION}`;
 
   const stream = await client.chat.completions.create({
-  model: "llama-3.3-70b",
+  model: "openai/gpt-oss-20b",
     max_tokens: 1000,
     stream: true,
     messages: [
